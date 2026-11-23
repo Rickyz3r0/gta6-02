@@ -1,5 +1,6 @@
 [
-  { "name": "1-start.jpg", "query": "?shot=start&seed=1" },
-  { "name": "2-play.jpg", "query": "?shot=play&seed=1" },
-  { "name": "3-end.jpg", "query": "?shot=end&seed=1" }
+  { "name": "1-neon-pursuit-cover.jpg", "query": "?shot=cover&seed=2026" },
+  { "name": "2-onfoot-combat-marina.jpg", "query": "?shot=onfoot&seed=2026" },
+  { "name": "3-causeway-convoy-heist.jpg", "query": "?shot=causeway&seed=2026" },
+  { "name": "4-mission-hub-and-save.jpg", "query": "?shot=hub&seed=2026" }
 ]

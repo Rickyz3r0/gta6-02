@@ -1,19 +1,243 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Block Dodger</title>
-<style>
-  html, body { margin: 0; height: 100%; overflow: hidden; background: #11141b; }
-  #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
-  /* Read aloud, never shown: the status line screen readers announce. */
-  #status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Solaris Drift: Sunset Keys — Open-World Coastal Crime</title>
+  <link rel="stylesheet" href="./styles/liquid-glass.css">
 </head>
 <body>
-<canvas id="game" aria-label="Block Dodger: move the paddle left and right to dodge falling blocks and catch coins"></canvas>
-<p id="status" role="status" aria-live="polite"></p>
-<script type="module" src="./src/main.js"></script>
+  <div id="app-shell">
+    <canvas id="world-canvas" aria-label="Solaris Drift: Sunset Keys open-world viewport"></canvas>
+
+    <!-- iOS 27 Liquid Glass HUD Layer -->
+    <div id="hud-layer">
+      <!-- Top-Left: GPS Radar Minimap & District / Mission Overlay -->
+      <div id="hud-top-left">
+        <div id="minimap-card" class="glass-panel">
+          <div class="minimap-header">
+            <span id="gps-district" class="badge-pill badge-cyan">CORAL DRIVE STRIP</span>
+            <span id="gps-time" class="gps-clock">19:42 · SUNSET</span>
+          </div>
+          <div class="minimap-frame">
+            <canvas id="minimap-canvas" width="210" height="164"></canvas>
+            <div class="minimap-compass">N</div>
+            <div id="minimap-chase-alert" class="minimap-alert hidden">SPPD RADAR LOCK</div>
+          </div>
+          <div class="minimap-footer">
+            <span id="gps-street">Oceanfront Blvd &amp; 4th Ave</span>
+            <span id="gps-coords">1.2 KM TO WAYPOINT</span>
+          </div>
+        </div>
+
+        <div id="mission-card" class="glass-panel">
+          <div class="mission-top-row">
+            <span id="mission-tag" class="badge-pill badge-sunset">ACTIVE STORY MISSION</span>
+            <span id="mission-reward" class="mission-payout">+$20,000</span>
+          </div>
+          <h2 id="mission-title">Mission 3: Marina Heat</h2>
+          <p id="mission-objective">Evade the SPPD tactical pursuit and deliver the encrypted ledger to the Coral Drive Safehouse.</p>
+          <div class="mission-progress-track">
+            <div id="mission-progress-fill" style="width: 68%"></div>
+          </div>
+          <div id="comms-banner" class="comms-strip">
+            <div id="comms-avatar" class="comms-avatar">EV</div>
+            <div class="comms-copy">
+              <strong id="comms-speaker">Elena Vega · Encrypted Comms</strong>
+              <span id="comms-line">"Choppers are sweeping Ocean Blvd! Hit the Neon Respray or lose their line of sight!"</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Top-Center: Dynamic District / Crime Notification Banner -->
+      <div id="hud-top-center">
+        <div id="toast-banner" class="glass-pill">
+          <span id="toast-dot" class="pulse-dot"></span>
+          <span id="toast-text">PALMERA CITY · STATE OF SOLARIA</span>
+        </div>
+      </div>
+
+      <!-- Top-Right: Wanted Stars, Cash, Vitals, Weapon & Radio -->
+      <div id="hud-top-right">
+        <div id="status-card" class="glass-panel">
+          <div class="wanted-row">
+            <span class="wanted-label">SPPD HEAT</span>
+            <div id="wanted-stars" class="stars-group" aria-label="Wanted level">
+              <span class="star" data-star="1">★</span>
+              <span class="star" data-star="2">★</span>
+              <span class="star" data-star="3">★</span>
+              <span class="star" data-star="4">★</span>
+              <span class="star" data-star="5">★</span>
+            </div>
+          </div>
+          <div id="wanted-status-line" class="wanted-sub">PATROL CLEAR · NO ACTIVE WARRANT</div>
+
+          <div class="cash-row">
+            <span class="cash-label">SYNDICATE BANK</span>
+            <span id="player-cash" class="cash-value">$64,850</span>
+          </div>
+
+          <div class="vitals-grid">
+            <div class="vital-item">
+              <div class="vital-label-row">
+                <span>HEALTH</span>
+                <span id="health-val">100%</span>
+              </div>
+              <div class="vital-bar"><div id="health-fill" class="vital-fill fill-health" style="width: 100%"></div></div>
+            </div>
+            <div class="vital-item">
+              <div class="vital-label-row">
+                <span>ARMOR</span>
+                <span id="armor-val">85%</span>
+              </div>
+              <div class="vital-bar"><div id="armor-fill" class="vital-fill fill-armor" style="width: 85%"></div></div>
+            </div>
+          </div>
+
+          <div id="weapon-card" class="weapon-box">
+            <div class="weapon-meta">
+              <span class="weapon-slot-tag">[1–5] EQUIPPED LOADOUT</span>
+              <strong id="weapon-name">Mariposa Tactical SMG</strong>
+            </div>
+            <div class="weapon-ammo-box">
+              <span id="weapon-ammo" class="ammo-count">120 / 360</span>
+              <span id="weapon-mode" class="ammo-type">9MM AUTO</span>
+            </div>
+          </div>
+
+          <div id="radio-bar" class="radio-strip">
+            <span class="radio-icon">♫</span>
+            <span id="radio-station">Solaria 88.4 SynthFM — "Sunset Drive"</span>
+            <button id="btn-radio" type="button" class="glass-mini-btn" title="Cycle Radio (Q)">[Q]</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom-Left: Contextual Action & Controls Bar -->
+      <div id="hud-bottom-left">
+        <div id="interaction-prompt" class="glass-panel prompt-card">
+          <span id="prompt-key" class="key-cap">F</span>
+          <div class="prompt-copy">
+            <strong id="prompt-title">Carjack Nearby Vehicle</strong>
+            <span id="prompt-desc">Approach any traffic or parked car to commandeer it</span>
+          </div>
+        </div>
+
+        <div id="controls-strip" class="glass-pill controls-bar">
+          <span><b>WASD</b> Move / Drive</span>
+          <span><b>Mouse</b> Aim &amp; Fire</span>
+          <span><b>F</b> Enter / Jack Car</span>
+          <span><b>Space</b> Drift / Brake</span>
+          <span><b>1-5</b> Weapons</span>
+          <span><b>M</b> Campaign &amp; Save</span>
+        </div>
+      </div>
+
+      <!-- Bottom-Right: Vehicle Telemetry Card -->
+      <div id="hud-bottom-right">
+        <div id="telemetry-card" class="glass-panel">
+          <div class="telemetry-top">
+            <div>
+              <span id="vehicle-class" class="badge-pill badge-magenta">SPORTS COUPE</span>
+              <h3 id="vehicle-name">Solaria GT-R</h3>
+            </div>
+            <div class="gear-badge">
+              <span class="gear-label">GEAR</span>
+              <strong id="vehicle-gear">4</strong>
+            </div>
+          </div>
+          <div class="speed-row">
+            <div class="speed-readout">
+              <span id="vehicle-speed" class="speed-digits">118</span>
+              <span class="speed-unit">MPH</span>
+            </div>
+            <div class="rpm-column">
+              <div class="rpm-label-row">
+                <span>RPM / BOOST</span>
+                <span id="drift-state" class="drift-tag">TRACTION OK</span>
+              </div>
+              <div class="rpm-track"><div id="rpm-fill" style="width: 78%"></div></div>
+              <div class="rpm-label-row">
+                <span>CHASSIS INTEGRITY</span>
+                <span id="hull-val">92%</span>
+              </div>
+              <div class="rpm-track"><div id="hull-fill" class="hull-fill" style="width: 92%"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- iOS 27 Liquid Glass Campaign, Mission Director & Save System Modal -->
+    <div id="dossier-modal" class="modal-backdrop hidden">
+      <div class="glass-modal">
+        <div class="modal-header">
+          <div>
+            <span class="badge-pill badge-sunset">SOLARIS DRIFT · PALMERA CITY COMMAND</span>
+            <h1>Syndicate Campaign, World Map &amp; Save Slots</h1>
+            <p class="modal-subtitle">Select any story mission to launch immediately, manage persistent save slots, or resume open-world exploration.</p>
+          </div>
+          <div class="modal-actions">
+            <button id="btn-resume-play" type="button" class="btn-glass btn-primary">Resume Open World [Esc]</button>
+          </div>
+        </div>
+
+        <div class="modal-grid">
+          <!-- Left Column: Story Missions & Activities -->
+          <div class="modal-section">
+            <div class="section-title-row">
+              <h2>Story Campaign (6 Missions)</h2>
+              <span id="campaign-progress-badge" class="badge-pill badge-cyan">3 / 6 COMPLETED</span>
+            </div>
+            <div id="mission-list" class="mission-list"></div>
+          </div>
+
+          <!-- Right Column: Persistent Save Slots & Career Stats -->
+          <div class="modal-section">
+            <div class="section-title-row">
+              <h2>Save System &amp; Career Profile</h2>
+              <span id="autosave-indicator" class="badge-pill badge-emerald">LOCALSTORAGE ACTIVE</span>
+            </div>
+            <div id="save-slots-list" class="save-slots-list"></div>
+
+            <div class="save-io-row">
+              <button id="btn-quick-save" type="button" class="btn-glass">Quick Save Active Slot [F5]</button>
+              <button id="btn-export-save" type="button" class="btn-glass">Export Save JSON</button>
+              <label class="btn-glass file-label">
+                Import Save JSON
+                <input id="input-import-save" type="file" accept="application/json" hidden>
+              </label>
+            </div>
+
+            <div id="career-stats-card" class="career-stats-grid"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Title / Start Screen Banner (Toggleable) -->
+    <div id="title-modal" class="modal-backdrop hidden">
+      <div class="glass-modal title-card">
+        <span class="badge-pill badge-sunset">PALMERA CITY · STATE OF SOLARIA · 100% ORIGINAL OPEN WORLD</span>
+        <h1 class="title-hero">SOLARIS DRIFT: SUNSET KEYS</h1>
+        <p class="title-tagline">Explore a sun-soaked neon coastal metropolis on foot and behind the wheel. Commandeer exotic vehicles, outrun 5-star SPPD tactical pursuits, and execute a 6-part coastal heist campaign with Mateo Vance &amp; Elena Vega.</p>
+        <div class="title-features-grid">
+          <div class="feature-chip"><strong>6 Coastal Districts</strong><span>Coral Strip, Mariposa Marina, Downtown, Caiman Keys, Flamingo Heights, Port Aurelia</span></div>
+          <div class="feature-chip"><strong>7 Stealable Vehicles</strong><span>Solaria GT-R, Veloce Apex, Palmera Cruiser, Caiman 4x4, Aurelia Van, SPPD Units</span></div>
+          <div class="feature-chip"><strong>5-Star Police Heat</strong><span>Patrols, Sirens, Spike Roadblocks, SWAT Enforcers &amp; Chopper Searchlights</span></div>
+          <div class="feature-chip"><strong>3-Slot Save System</strong><span>Persistent localStorage slots, JSON export/import &amp; instant mission replay</span></div>
+        </div>
+        <div class="title-cta-row">
+          <button id="btn-start-game" type="button" class="btn-glass btn-primary btn-large">Enter Palmera City [Space / Click]</button>
+          <button id="btn-open-saves" type="button" class="btn-glass btn-large">Mission Select &amp; Save Slots [M]</button>
+        </div>
+      </div>
+    </div>
+
+    <p id="status" role="status" aria-live="polite" class="sr-only"></p>
+  </div>
+
+  <script type="module" src="./src/main.js"></script>
 </body>
 </html>

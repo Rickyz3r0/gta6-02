@@ -1,134 +1,129 @@
-// Boot and the one loop: input is read every frame, the world advances in fixed 1/60 s steps
-// (several in a slow frame, none in a fast one), and the renderer paints what is there. The game
-// moves between four screens: title, play, paused and game over.
-//
-// ?seed=N fixes the falling pattern. ?shot=start|play|end (with &seed=N) stages that scene
-// instead of running the loop, paints it twice and sets window.__shotReady for a screenshot.
-import { BEST_KEY, LIVES, STEP } from './config.js';
-import { createRandom } from './random.js';
-import { createWorld, EVENT_HIT, EVENT_OVER } from './world.js';
-import { ACTION_CONFIRM, ACTION_PAUSE, createInput } from './input.js';
-import { createRenderer, SCREEN_OVER, SCREEN_PAUSED, SCREEN_PLAY, SCREEN_TITLE } from './render.js';
-import { stageShot } from './shots.js';
+// Application bootstrap and fixed-timestep 60Hz game loop for Solaris Drift: Sunset Keys.
+// Wires keyboard/mouse controls, open-world simulation, 2.5D perspective renderer, iOS 27 Liquid Glass HUD,
+// title & campaign/save overlays, and deterministic ?shot= scene capture for screenshots.
 
-/** The longest frame the loop catches up on; a longer stall (a hidden tab) is dropped, not replayed. */
-const MAX_FRAME = 0.25;
+import { STEP } from './config.js';
+import { createHudController } from './hud-ui.js';
+import { createInputController } from './input.js';
+import { createWorldRenderer } from './renderer.js';
+import { stageShotScene } from './shots.js';
+import { createOpenWorld } from './world.js';
 
 const params = new URLSearchParams(window.location.search);
-const shot = params.get('shot');
-const seedParam = Number.parseInt(params.get('seed') ?? '', 10);
-const seed = Number.isInteger(seedParam) ? seedParam : Math.floor(Math.random() * 4294967296);
+const shotName = params.get('shot');
+const seedParam = Number.parseInt(params.get('seed') ?? '2026', 10);
+const seed = Number.isInteger(seedParam) ? seedParam : 2026;
 
-const canvas = document.getElementById('game');
-const status = document.getElementById('status');
-const world = createWorld(createRandom(seed));
-const renderer = createRenderer(canvas);
+const canvas = document.getElementById('world-canvas');
+const statusEl = document.getElementById('status');
 
-function readBest() {
-  try {
-    return Number.parseInt(window.localStorage.getItem(BEST_KEY) ?? '0', 10) || 0;
-  } catch {
-    return 0;
-  }
+const world = createOpenWorld(seed);
+const renderer = createWorldRenderer(canvas);
+const input = createInputController(canvas);
+
+let uiMode = shotName ? 'none' : 'title'; // 'title' | 'dossier' | 'none'
+
+const hud = createHudController(world, {
+  onStartGame() {
+    world.audio.ensureContext();
+    world.audio.playSfx('ui_click');
+    uiMode = 'none';
+    hud.setOverlays(uiMode);
+    announce('Entered Palmera City. Explore on foot or press F to steal a vehicle.');
+  },
+  onOpenDossier() {
+    world.audio.ensureContext();
+    world.audio.playSfx('ui_click');
+    uiMode = 'dossier';
+    hud.setOverlays(uiMode);
+    announce('Campaign and Save System open.');
+  },
+  onResume() {
+    world.audio.ensureContext();
+    world.audio.playSfx('ui_click');
+    uiMode = 'none';
+    hud.setOverlays(uiMode);
+    announce('Resumed open-world exploration.');
+  },
+});
+
+function announce(text) {
+  if (statusEl) statusEl.textContent = text;
 }
 
-function saveBest(value) {
-  try {
-    window.localStorage.setItem(BEST_KEY, String(value));
-  } catch {
-    // Storage can be off (private windows): the best score then lasts this visit only.
-  }
-}
-
-function runShot(name) {
-  const scene = stageShot(name, world);
-  let painted = 0;
-  function paint() {
-    renderer.draw(world.state, scene.screen, scene.best);
-    painted += 1;
-    if (painted < 2) requestAnimationFrame(paint);
+function runDeterministicShot(name) {
+  const { overlay } = stageShotScene(name, world);
+  uiMode = overlay;
+  hud.setOverlays(uiMode);
+  let frames = 0;
+  function drawOnce() {
+    renderer.renderFrame(world);
+    hud.updateHud();
+    frames += 1;
+    if (frames < 3) requestAnimationFrame(drawOnce);
     else window.__shotReady = true;
   }
-  requestAnimationFrame(paint);
+  requestAnimationFrame(drawOnce);
 }
 
-function runGame() {
-  const input = createInput(canvas);
-  let screen = SCREEN_TITLE;
-  let best = readBest();
+function runLiveLoop() {
+  hud.setOverlays(uiMode);
+  let lastTime = performance.now();
   let accumulator = 0;
-  let last = performance.now();
 
-  // Screen readers (and anyone watching the page's text) hear the screen changes and each hit.
-  function announce(message) {
-    status.textContent = message;
-  }
-
-  function startGame() {
-    world.reset();
-    accumulator = 0;
-    screen = SCREEN_PLAY;
-    announce(`Playing. ${LIVES} lives.`);
-  }
-
-  function endGame() {
-    screen = SCREEN_OVER;
-    if (world.state.score > best) {
-      best = world.state.score;
-      saveBest(best);
-    }
-    announce(`Game over. Score ${world.state.score}. Best ${best}.`);
-  }
-
-  function handleActions() {
-    const actions = input.takeActions();
-    if (actions & ACTION_CONFIRM && (screen === SCREEN_TITLE || screen === SCREEN_OVER)) startGame();
-    else if (actions & ACTION_PAUSE && screen === SCREEN_PLAY) {
-      screen = SCREEN_PAUSED;
-      announce('Paused.');
-    } else if (actions & (ACTION_PAUSE | ACTION_CONFIRM) && screen === SCREEN_PAUSED) {
-      screen = SCREEN_PLAY;
-      announce('Playing.');
-    }
-  }
-
-  function step() {
-    if (screen === SCREEN_TITLE) {
-      world.step(STEP, 0, true);
-      return;
-    }
-    const events = world.step(STEP, input.direction(), false);
-    if (events & EVENT_OVER) endGame();
-    else if (events & EVENT_HIT) announce(world.state.lives === 1 ? 'Hit. 1 life left.' : `Hit. ${world.state.lives} lives left.`);
-  }
+  // Stage an exciting opening coastal scene behind the translucent title screen
+  stageShotScene('cover', world);
+  hud.setOverlays('title');
 
   function frame(now) {
     requestAnimationFrame(frame);
-    accumulator += Math.min((now - last) / 1000, MAX_FRAME);
-    last = now;
-    handleActions();
-    if (screen === SCREEN_TITLE || screen === SCREEN_PLAY) {
-      while (accumulator >= STEP && (screen === SCREEN_TITLE || screen === SCREEN_PLAY)) {
-        step();
+    const delta = Math.min((now - lastTime) / 1000, 0.25);
+    lastTime = now;
+
+    const inputState = input.readState();
+    const oneShots = input.consumeOneShots();
+
+    if (uiMode === 'title' && oneShots.startConfirm) {
+      world.audio.ensureContext();
+      world.resetWorld();
+      uiMode = 'none';
+      hud.setOverlays('none');
+      announce('Playing Solaris Drift: Sunset Keys.');
+    } else if (oneShots.toggleMenu) {
+      uiMode = uiMode === 'dossier' ? 'none' : 'dossier';
+      hud.setOverlays(uiMode);
+      world.audio.playSfx('ui_click');
+    }
+
+    const size = renderer.getSize();
+    if (uiMode === 'none') {
+      accumulator += delta;
+      while (accumulator >= STEP) {
+        world.step(STEP, inputState, oneShots, size.width, size.height);
+        oneShots.carjack = false;
+        oneShots.quickSave = false;
+        oneShots.cycleRadio = false;
+        oneShots.weaponSlot = null;
+        accumulator -= STEP;
+      }
+    } else if (uiMode === 'title') {
+      // Gently animate sunset waves, traffic & lights behind the translucent title screen
+      accumulator += delta * 0.4;
+      while (accumulator >= STEP) {
+        world.step(STEP, { up: false, down: false, left: false, right: false, handbrake: false, sprint: false, firing: false, mouseX: 640, mouseY: 400 }, { carjack: false, toggleMenu: false, quickSave: false, cycleRadio: false, startConfirm: false, weaponSlot: null }, size.width, size.height);
         accumulator -= STEP;
       }
     } else {
       accumulator = 0;
     }
-    renderer.draw(world.state, screen, best);
+
+    renderer.renderFrame(world);
+    hud.updateHud();
   }
 
-  // Leaving the tab pauses a running game rather than letting blocks fall unseen.
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden && screen === SCREEN_PLAY) {
-      screen = SCREEN_PAUSED;
-      announce('Paused.');
-    }
-  });
-
-  announce('Block Dodger. Press Space or click to start.');
+  announce('Solaris Drift: Sunset Keys loaded. Press Space or click Enter Palmera City.');
   requestAnimationFrame(frame);
 }
 
-if (shot) runShot(shot);
-else runGame();
+if (shotName) runDeterministicShot(shotName);
+else runLiveLoop();

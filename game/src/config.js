@@ -1,61 +1,276 @@
-// Every tuning number and colour in one place. The playfield is a fixed 1280x720 logical area;
-// the renderer scales it to the window, so no rule below depends on the screen size.
+// Core world constants, district definitions, vehicle catalog, weapon arsenal, and visual palette
+// for Solaris Drift: Sunset Keys (Palmera City, State of Solaria).
 
-export const FIELD = { width: 1280, height: 720, groundY: 664 };
-
-/** The simulation's fixed step, in seconds: 60 updates a second whatever the display's rate. */
+export const VIEWPORT = { width: 1280, height: 800 };
 export const STEP = 1 / 60;
-
-export const PLAYER = {
-  width: 72,
-  height: 24,
-  speed: 560,
-  invulnerable: 1.5,
-};
-
-export const LIVES = 3;
-
-export const BLOCK = {
-  minWidth: 40,
-  maxWidth: 110,
-  height: 36,
-  speed: 240,
-  speedPerLevel: 30,
-  speedJitter: 90,
-  interval: 0.55,
-  intervalScale: 0.88,
-  minInterval: 0.14,
-  dodgePoints: 1,
-};
-
-export const COIN = {
-  size: 24,
-  speed: 190,
-  speedPerLevel: 14,
-  interval: 1.4,
-  intervalJitter: 0.8,
-  points: 10,
-};
-
-/** Seconds of play per level, and the last level: speeds and spawn rates stop growing there. */
-export const LEVEL = { seconds: 12, max: 12 };
-
-/** How many falling things can exist at once; the pool is allocated once, at boot. */
-export const POOL_SIZE = 64;
+export const WORLD_BOUNDS = { width: 4800, height: 3600 };
+export const SAVE_STORAGE_KEY = 'solaris-drift-sunset-keys.saves.v1';
 
 export const PALETTE = {
-  backdrop: '#11141b',
-  sky: '#1b1f2a',
-  ground: '#2a3040',
-  player: '#4fc3f7',
-  block: '#e5534b',
-  coin: '#f2c94c',
-  panel: '#252b38',
-  text: '#eef1f5',
-  muted: '#8b93a3',
+  oceanDeep: '#071a30',
+  oceanLagoon: '#0e3456',
+  oceanFoam: '#5ce1e6',
+  beachSand: '#d9ad7c',
+  boardwalkWood: '#5c3c28',
+  grassTropical: '#18382c',
+  asphaltMain: '#191d2b',
+  asphaltLane: '#252b3d',
+  sidewalkConcrete: '#394158',
+  neonCyan: '#2de2e6',
+  neonCoral: '#ff5e7e',
+  neonAmber: '#ffb347',
+  neonMagenta: '#ff2a85',
+  emeraldCash: '#2ee59d',
+  policeBlue: '#3a86ff',
+  policeRed: '#ff2a55',
 };
 
-export const FONT = 'system-ui, -apple-system, "Segoe UI", sans-serif';
+export const DISTRICTS = [
+  {
+    id: 'coral-strip',
+    name: 'CORAL DRIVE STRIP',
+    street: 'Oceanfront Blvd & 4th Ave',
+    bounds: { x: 2600, y: 300, w: 1700, h: 1400 },
+    accent: '#ff5e7e',
+    ambient: 'Neon Art-Deco Hotel Row & Sunset Boardwalk',
+  },
+  {
+    id: 'mariposa-marina',
+    name: 'MARIPOSA MARINA',
+    street: 'Pier 7 & Yacht Harbor Way',
+    bounds: { x: 2500, y: 1700, w: 1800, h: 1500 },
+    accent: '#2de2e6',
+    ambient: 'Luxury Superyacht Slips & Waterfront Promenade',
+  },
+  {
+    id: 'solaria-downtown',
+    name: 'SOLARIA DOWNTOWN',
+    street: 'Aurelia Financial Plaza & 9th St',
+    bounds: { x: 1100, y: 400, w: 1500, h: 1400 },
+    accent: '#a855f7',
+    ambient: 'High-Rise Glass Towers & Corporate Heliports',
+  },
+  {
+    id: 'caiman-keys',
+    name: 'CAIMAN KEYS CAUSEWAY',
+    street: 'Solaria Bay Span & Lagoon Key',
+    bounds: { x: 1100, y: 1800, w: 1400, h: 1400 },
+    accent: '#ffb347',
+    ambient: 'Over-Water Causeway Bridges & Tropical Keys',
+  },
+  {
+    id: 'flamingo-heights',
+    name: 'FLAMINGO HEIGHTS',
+    street: 'Palmera Hills Crest & Vista Dr',
+    bounds: { x: 200, y: 300, w: 900, h: 1500 },
+    accent: '#ff2a85',
+    ambient: 'Hillside Estates & Syndicate Villas',
+  },
+  {
+    id: 'port-aurelia',
+    name: 'PORT AURELIA DOCKS',
+    street: 'Terminal Basin & Freight Gate 3',
+    bounds: { x: 200, y: 1800, w: 900, h: 1500 },
+    accent: '#2ee59d',
+    ambient: 'Container Cranes, Smuggler Warehouses & Shipyard',
+  },
+];
 
-/** Where the best score is kept between visits (this browser only). */
-export const BEST_KEY = 'block-dodger.best';
+export const VEHICLE_CATALOG = {
+  'solaria-gtr': {
+    id: 'solaria-gtr',
+    name: 'Solaria GT-R',
+    category: 'SPORTS COUPE',
+    width: 64,
+    height: 32,
+    maxSpeed: 490,
+    accel: 390,
+    brake: 520,
+    turnRate: 3.1,
+    driftGrip: 0.91,
+    maxHealth: 220,
+    bodyColor: '#16d9e3',
+    stripeColor: '#ff2a85',
+    glassColor: '#0c1829',
+  },
+  'veloce-apex': {
+    id: 'veloce-apex',
+    name: 'Veloce Apex',
+    category: 'EXOTIC SUPERCAR',
+    width: 68,
+    height: 33,
+    maxSpeed: 545,
+    accel: 440,
+    brake: 560,
+    turnRate: 3.35,
+    driftGrip: 0.93,
+    maxHealth: 200,
+    bodyColor: '#ff6b35',
+    stripeColor: '#ffe66d',
+    glassColor: '#111625',
+  },
+  'palmera-cruiser': {
+    id: 'palmera-cruiser',
+    name: 'Palmera Cruiser',
+    category: 'COASTAL CONVERTIBLE',
+    width: 64,
+    height: 31,
+    maxSpeed: 410,
+    accel: 310,
+    brake: 430,
+    turnRate: 2.8,
+    driftGrip: 0.88,
+    maxHealth: 210,
+    bodyColor: '#ff5e7e',
+    stripeColor: '#fff1d0',
+    glassColor: '#192236',
+  },
+  'caiman-4x4': {
+    id: 'caiman-4x4',
+    name: 'Caiman 4x4',
+    category: 'OFF-ROAD MUSCLE TRUCK',
+    width: 72,
+    height: 37,
+    maxSpeed: 430,
+    accel: 340,
+    brake: 470,
+    turnRate: 2.65,
+    driftGrip: 0.86,
+    maxHealth: 360,
+    bodyColor: '#2ee59d',
+    stripeColor: '#0b1320',
+    glassColor: '#0e1929',
+  },
+  'aurelia-van': {
+    id: 'aurelia-van',
+    name: 'Aurelia Heist Van',
+    category: 'ARMORED TRANSPORT',
+    width: 78,
+    height: 38,
+    maxSpeed: 370,
+    accel: 270,
+    brake: 410,
+    turnRate: 2.35,
+    driftGrip: 0.85,
+    maxHealth: 480,
+    bodyColor: '#2b3348',
+    stripeColor: '#ffb347',
+    glassColor: '#090f1c',
+  },
+  'sppd-interceptor': {
+    id: 'sppd-interceptor',
+    name: 'SPPD Interceptor',
+    category: 'POLICE PURSUIT UNIT',
+    width: 66,
+    height: 32,
+    maxSpeed: 485,
+    accel: 385,
+    brake: 510,
+    turnRate: 3.05,
+    driftGrip: 0.9,
+    maxHealth: 260,
+    bodyColor: '#10182b',
+    stripeColor: '#f4f7fc',
+    glassColor: '#091120',
+    isPolice: true,
+  },
+  'sppd-swat': {
+    id: 'sppd-swat',
+    name: 'SPPD SWAT Enforcer',
+    category: 'TACTICAL ARMORED UNIT',
+    width: 80,
+    height: 40,
+    maxSpeed: 415,
+    accel: 320,
+    brake: 490,
+    turnRate: 2.45,
+    driftGrip: 0.87,
+    maxHealth: 540,
+    bodyColor: '#0c1324',
+    stripeColor: '#3a86ff',
+    glassColor: '#050a14',
+    isPolice: true,
+  },
+};
+
+export const WEAPON_ARSENAL = [
+  {
+    slot: 1,
+    id: 'solaria-9mm',
+    name: '9mm Solaria Compact',
+    mode: 'SEMI-AUTO PISTOL',
+    damage: 32,
+    fireInterval: 0.22,
+    range: 520,
+    spread: 0.04,
+    projectileSpeed: 980,
+    clipSize: 18,
+    reserveAmmo: 180,
+    color: '#ffe066',
+  },
+  {
+    slot: 2,
+    id: 'mariposa-smg',
+    name: 'Mariposa Tactical SMG',
+    mode: '9MM RAPID AUTO',
+    damage: 24,
+    fireInterval: 0.085,
+    range: 560,
+    spread: 0.075,
+    projectileSpeed: 1060,
+    clipSize: 120,
+    reserveAmmo: 360,
+    color: '#2de2e6',
+  },
+  {
+    slot: 3,
+    id: 'caiman-shotgun',
+    name: 'Caiman Heavy Shotgun',
+    mode: '12-GAUGE BUCKSHOT',
+    damage: 28,
+    pellets: 6,
+    fireInterval: 0.55,
+    range: 410,
+    spread: 0.19,
+    projectileSpeed: 920,
+    clipSize: 24,
+    reserveAmmo: 96,
+    color: '#ff8c42',
+  },
+  {
+    slot: 4,
+    id: 'aurelia-carbine',
+    name: 'Aurelia Assault Carbine',
+    mode: '5.56MM PRECISION',
+    damage: 42,
+    fireInterval: 0.12,
+    range: 700,
+    spread: 0.035,
+    projectileSpeed: 1220,
+    clipSize: 90,
+    reserveAmmo: 270,
+    color: '#ff5e7e',
+  },
+  {
+    slot: 5,
+    id: 'emp-launcher',
+    name: 'Solaria Pulse Launcher',
+    mode: 'EXPLOSIVE / EMP CHARGE',
+    damage: 165,
+    fireInterval: 0.9,
+    range: 620,
+    spread: 0.02,
+    projectileSpeed: 760,
+    explosiveRadius: 125,
+    clipSize: 12,
+    reserveAmmo: 36,
+    color: '#c77dff',
+  },
+];
+
+export const RADIO_STATIONS = [
+  { id: 'synth-fm', title: 'Solaria 88.4 SynthFM — "Sunset Drive"', bpm: 118, rootFreq: 110, style: 'synthwave' },
+  { id: 'costa-fm', title: 'Costa Caliente 96.1 — "Palmera Bounce"', bpm: 126, rootFreq: 130.81, style: 'latin' },
+  { id: 'keys-fm', title: 'Midnight Keys 104.7 — "Causeway Nocturne"', bpm: 98, rootFreq: 98, style: 'chill' },
+  { id: 'off', title: 'Radio Mute — Police Scanner Active', bpm: 0, rootFreq: 0, style: 'off' },
+];
